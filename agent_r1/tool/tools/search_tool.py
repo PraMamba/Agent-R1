@@ -11,6 +11,8 @@ import faiss
 from FlagEmbedding import FlagAutoModel
 import json
 
+HOTPOTQA_DATA_DIR = "/data/Mamba/Project/Agent-R1/Search_HotpotQA/data/corpus/hotpotqa"
+
 class SearchTool(BaseTool):
     name = "search"
     description = "Search for information on the internet using Wikipedia as a knowledge source."
@@ -27,9 +29,7 @@ class SearchTool(BaseTool):
         print("[DEBUG] EMBEDDINGS LOADING")
         
         # Get the absolute path to the data directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # data_dir = os.path.abspath(os.path.join(current_dir, "../../../data/corpus/hotpotqa"))
-        data_dir = os.path.abspath(os.path.join(current_dir, "/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa"))
+        data_dir = os.path.abspath(HOTPOTQA_DATA_DIR)
         
         # Load index and corpus using absolute paths
         self.index = faiss.read_index(os.path.join(data_dir, "index.bin"))

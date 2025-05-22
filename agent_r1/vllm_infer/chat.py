@@ -11,6 +11,7 @@ import sys
 from openai import OpenAI
 
 from agent_r1.tool.envs.nous import NousToolEnv
+from agent_r1.tool.envs.retool import ReToolEnv
 from agent_r1.tool.tools import _default_tool
 import agent_r1.vllm_infer.config as default_config
 
@@ -196,7 +197,11 @@ def main():
     tools = []
     for tool in TOOLS:
         tools.append(_default_tool(tool))
-    env = NousToolEnv(tools=tools, max_tool_response_length=MAX_TOKENS)
+        
+    if TOOLS[0] != "python":
+        env = NousToolEnv(tools=tools, max_tool_response_length=MAX_TOKENS)
+    if TOOLS[0] == "python":
+        env = ReToolEnv(tools=tools, max_tool_response_length=MAX_TOKENS)
     
     tools = [tool.tool_description for tool in tools]
     

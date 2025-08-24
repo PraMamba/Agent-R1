@@ -5,6 +5,10 @@ source ~/.bashrc
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate Agent-R1
 
+export http_proxy=http://127.0.0.1:7891
+export https_proxy=http://127.0.0.1:7891
+# export all_proxy=socks5://127.0.0.1:7891
+
 export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
 export CUDA_LAUNCH_BLOCKING=1
@@ -16,13 +20,13 @@ export VLLM_USE_V1=1
 ADV_ESTIMATOR=GRPO
 RL_DATASET=ReTool
 MAX_RESPONSE_LENGTH=8192
-MICRO_BATCH_SIZE_PER_GPU=8
+MICRO_BATCH_SIZE_PER_GPU=4
 KL_COEF=0.001
 ROLLOUT=8
 EPOCHS=5
 
-MODEL_NAME=Qwen2.5-1.5B-Instruct
-MODEL_PATH=Qwen/Qwen2.5-1.5B-Instruct
+MODEL_NAME=Tool-Star-Qwen-3B
+MODEL_PATH=dongguanting/Tool-Star-Qwen-3B
 
 PROJECT_NAME=Agent-R1_Math-ReTool
 DATE_SUFFIX=$(date +"%Y%m%d")
@@ -50,27 +54,29 @@ echo "=============================================="
 cd ~/Agent-R1
 PYTHONWARNINGS="ignore" python -m agent_r1.src.main_agent \
     algorithm.adv_estimator=${ADV_ESTIMATOR,,} \
+    algorithm.use_kl_in_reward=False \
     data.train_files=[$TRAIN_FILES] \
     data.val_files=[$VALID_FILES] \
     data.train_batch_size=128 \
-    data.max_prompt_length=2048 \
+    data.max_prompt_length=512 \
     data.max_response_length=$MAX_RESPONSE_LENGTH \
     data.max_response_length_single_turn=8192 \
     data.use_default_tool_template=False \
-    data.truncation='error' \
+    data.truncation='right' \
     actor_rollout_ref.model.path=$MODEL_PATH \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.model.use_liger=True \
     actor_rollout_ref.actor.optim.lr=1e-06 \
-    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=32 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=$MICRO_BATCH_SIZE_PER_GPU \
     actor_rollout_ref.actor.use_kl_loss=True \
     actor_rollout_ref.actor.kl_loss_coef=$KL_COEF \
-    actor_rollout_ref.actor.kl_loss_type=low_var_kl \
+    actor_rollout_ref.actor.kl_loss_type=mse \
+    actor_rollout_ref.actor.entropy_coeff=0 \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
-    actor_rollout_ref.actor.ulysses_sequence_parallel_size=1 \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=2 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.n_repeat=$ROLLOUT \
     actor_rollout_ref.rollout.dtype=bfloat16 \
@@ -89,8 +95,7 @@ PYTHONWARNINGS="ignore" python -m agent_r1.src.main_agent \
     actor_rollout_ref.rollout.stop_token_ids=[] \
     'actor_rollout_ref.rollout.stop=["</code>"]' \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=$MICRO_BATCH_SIZE_PER_GPU \
-    actor_rollout_ref.ref.fsdp_config.param_offload=False \
-    algorithm.kl_ctrl.kl_coef=$KL_COEF \
+    actor_rollout_ref.ref.fsdp_config.param_offload=True \
     trainer.critic_warmup=0 \
     trainer.logger=['console','wandb'] \
     trainer.project_name=$PROJECT_NAME \
@@ -98,11 +103,12 @@ PYTHONWARNINGS="ignore" python -m agent_r1.src.main_agent \
     trainer.default_local_dir=$OUTPUT_DIR \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
-    trainer.save_freq=10 \
+    trainer.save_freq=30 \
     trainer.test_freq=1 \
     trainer.total_epochs=$EPOCHS "${@:1}" \
+	+trainer.wandb_proxy=http://127.0.0.1:7891 \
     tool.tools=['python'] \
     tool.env=retool \
     tool.max_turns=5 \
-    tool.max_tool_response_length=1024 \
+    tool.max_tool_response_length=4096 \
     >> "${log_file}" 2>&1

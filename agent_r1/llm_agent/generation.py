@@ -392,10 +392,16 @@ class ToolGenerationManager:
         response_mask = final_output['attention_mask'][:, -response_length:]
 
         final_output['action_mask'] = response_mask.clone()
+        
+        action_masks = rollings.non_tensor_batch['action_mask']
+        if isinstance(action_masks, np.ndarray) and action_masks.dtype == object:
+            action_masks = action_masks.tolist()
 
-        for i, action_mask in enumerate(rollings.non_tensor_batch['action_mask']):
+        for i, action_mask in enumerate(action_masks):
             mask_len = min(len(action_mask), response_mask.shape[1])
-            final_output['action_mask'][i, :mask_len] = torch.tensor(action_mask[:mask_len]) * response_mask[i, :mask_len]
+            mask_arr = np.asarray(action_mask[:mask_len], dtype=bool)
+            mask_vals = torch.from_numpy(mask_arr)
+            final_output['action_mask'][i, :mask_len] = mask_vals & response_mask[i, :mask_len]
         
         final_output = DataProto.from_dict(final_output)
         final_output.non_tensor_batch = rollings.non_tensor_batch
